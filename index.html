@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html>
+  
+<head>
+	<title>Leaflet Exercise</title>
+	<meta charset="utf-8" />
+
+	<!-- Leaflet styles and code. Place in the <head></head> element. -->
+	<link rel="stylesheet" href="https://unpkg.com/leaflet@1.4.0/dist/leaflet.css" />	
+	<script src="https://unpkg.com/leaflet@1.4.0/dist/leaflet.js"></script>
+
+	<!-- jQuery is a library that simplifies many things in JavaScript. 
+	We'll use it to retrieve data from the web. -->   
+	<script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>	
+	
+</head>
+
+<style>
+	body {
+		margin: 10;
+		padding: 10; 
+		
+	}
+	
+	.text {
+		font: 'Helvetica Neue', Arial, Helvetica, sans-serif;
+	}
+</style>
+
+<body>
+
+	<center>
+		<h1>UBC Parking Lots</h1>
+	</center>
+	
+	<!-- Our web map will get placed into this div element -->
+	<center>
+	<div id="mapid" style="width: 900px; height: 700px;"></div>
+	</center>
+
+	<center>
+		<div id="controls" style="margin: 15px;">
+		<button id="showAllParkingButton">Show All Parking</button>
+		
+		<span style="display:inline-block; width: 30px"></span>
+		<input type="text" id="highlightParkingTextEntry" placeholder="parking lot name">
+		<button id="highlightParkingButton">Highlight</button>
+
+		</div>
+	</center>
+  
+  <script>
+    
+    // Make a Leaflet map with L.map(). <- L is an object
+    // Store the map in the variable 'map'.
+    // "mapid" is the 'id' of the DOM element to contain the map.
+    var map = L.map('mapid', { 
+			center: [49.265637, -123.256113],
+			zoom: 15
+		}  
+    );
+	
+	var topoTiles = L.tileLayer(
+      'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',{
+			maxZoom: 17,
+			attribution: 'Map data: &copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>, <a href="http://viewfinderpanoramas.org">SRTM</a> | Map style: &copy; <a href="https://opentopomap.org">OpenTopoMap</a> (<a href="https://creativecommons.org/licenses/by-sa/3.0/">CC-BY-SA</a>)'
+			}
+		).addTo(map);
+		
+    var parkingMarkerOptions = {
+      radius: 6,
+      fillColor: "#ff1a1a",
+      color: "#000",
+      weight: 1,
+      opacity: 1,
+      fillOpacity: 1
+    };
+
+	var parkingMarkerHighlightedOptions = {
+		  radius: 6,
+          fillColor: "#ff1a1a",
+          color: "#000",
+          weight: 1,
+          opacity: 1,
+          fillOpacity: 1
+        };
+		
+    function onEachParking(feature, layer) {
+      if (feature.properties && feature.properties.FAC_DESCRIPTION) {
+        layer.bindTooltip('<h1>'+feature.properties.FAC_DESCRIPTION+'</h1><p>Rate:'+feature.properties.FAC_RATE+'</p>');
+      }
+    }
+
+    function parkingPointToLayer(feature, latlng) {
+	    if (taxaToHighlight === "") {
+            parkingMarkerOptionsToUse = parkingMarkerOptions;
+          } else {
+            parkingMarkerOptionsToUse = parkingMarkerHighlightedOptions;
+          }
+	  
+	  return L.circleMarker(
+        latlng,
+        parkingMarkerOptionsToUse
+      );
+    }
+   
+   function parkingToFilter(feature, layer) {
+	if (taxaToHighlight === "") {
+		return true;
+		
+	} else if (feature.properties && feature.properties.FAC_DESCRIPTION) {
+		return feature.properties.FAC_DESCRIPTION.toLowerCase() .includes(taxaToHighlight.toLowerCase());
+	} else {
+		return false;
+		}
+	}
+
+    var lastLayerAdded = {};
+
+    function addParking() {
+      if (map.hasLayer(lastLayerAdded)) {
+        map.removeLayer(lastLayerAdded);
+      }
+      lastLayerAdded = L.geoJSON(parkingGeoJSONdata, {
+        pointToLayer: parkingPointToLayer,
+        onEachFeature: onEachParking,
+        filter: parkingToFilter
+      });
+      lastLayerAdded.addTo(map);
+    };
+
+	var taxaToHighlight = "";
+    // This is set by someone pressing the highlight button.
+    // If it's an empty string, then just draw everything.
+	
+	function highlightParking() {
+      taxaToHighlight = document
+        .getElementById("highlightParkingTextEntry")
+        .value;
+      addParking();
+      taxaToHighlight = ""; 
+	  }
+
+	var parkingGeoJSONdata;
+	
+    // load GeoJSON from a file on the web
+    // $ is jQuery.
+	$.getJSON("https://raw.githubusercontent.com/UBCGeodata/ubcv-parking/master/geojson/ubcv_parking_www.geojson",
+		function(data){
+        // Store data for later:
+        parkingGeoJSONdata = data;
+        document
+          .getElementById("showAllParkingButton")
+          .addEventListener("click", addParking);
+        document
+          .getElementById("highlightParkingButton")
+          .addEventListener("click", highlightParking);
+    
+	});
+	
+  </script>
+
+</body>
+
+</html>
